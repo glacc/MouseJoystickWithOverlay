@@ -3,7 +3,6 @@
 
 using vJoyInterfaceWrap;
 using System.Runtime.Versioning;
-using Linearstar.Windows.RawInput;
 
 namespace MouseJoystickWithOverlay
 {
@@ -15,11 +14,21 @@ namespace MouseJoystickWithOverlay
 
         // static int joystickTick = 0;
 
-        const int mouseXMax = 1024;
-        const int mouseYMax = 1024;
+        public const int mouseXMax = 1024;
+        public const int mouseYMax = 1024;
 
-        static volatile int mouseX = mouseXMax / 2;
-        static volatile int mouseY = mouseYMax / 2;
+        static int m_mouseX = mouseXMax / 2;
+        static int m_mouseY = mouseYMax / 2;
+        public static int mouseX
+        {
+            get => m_mouseX;
+            private set => m_mouseX = value;
+        }
+        public static int mouseY
+        {
+            get => m_mouseY;
+            private set => m_mouseY = value;
+        }
 
         // Will be updated in runtime
         static long joystickXMax = 0;

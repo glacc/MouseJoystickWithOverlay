@@ -1,7 +1,6 @@
 ﻿// SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2025 Glacc
 
-using System.Drawing;
 using System.Runtime.Versioning;
 
 namespace MouseJoystickWithOverlay
@@ -11,74 +10,94 @@ namespace MouseJoystickWithOverlay
     {
         static volatile bool abortFlag = false;
 
-        static void GDIHudUpdate()
+        static void OverlayUpdateThread()
         {
+            while (!abortFlag)
+            {
+                if (GDIJoystickOverlay.instance != null)
+                {
+                    if (GDIJoystickOverlay.instance.Visible)
+                    {
+                        GDIJoystickOverlay.RequestRedraw();
+                        // GDIJoystickOverlay.instance?.SetToTopMost();
+                    }
+                }
 
+                Thread.Sleep(15);
+            }
+        }
+
+        static void ConfineCursor()
+        {
+            FocusChecker.mutex.WaitOne();
+
+            Win32.RECT? winRect = FocusChecker.winRect;
+
+            FocusChecker.mutex.ReleaseMutex();
+
+            if (winRect == null)
+                return;
+
+            Win32.POINT point;
+            if (!Win32.GetCursorPos(out point))
+                return;
+
+            Win32.RECT rectWindow = (Win32.RECT)winRect;
+
+            int mouseX = point.x;
+            int mouseY = point.y;
+
+            if (mouseX < rectWindow.left)
+                mouseX = rectWindow.left;
+            if (mouseX > rectWindow.right)
+                mouseX = rectWindow.right;
+
+            if (mouseY < rectWindow.top)
+                mouseY = rectWindow.top;
+            if (mouseY > rectWindow.bottom)
+                mouseY = rectWindow.bottom;
+
+            Win32.SetCursorPos(mouseX, mouseY);
+        }
+
+        static void FocusMonitorThread()
+        {
+            while (!abortFlag)
+            {
+                FocusChecker.Update();
+                Thread.Sleep(1000);
+            }
         }
 
         static void SeperateThread()
         {
-            IntPtr lastFocusedTargetHwnd = FocusedHwndChecker.focusedTargetHwnd;
-
             while (!abortFlag)
             {
-                FocusedHwndChecker.Update();
+                if (GDIJoystickOverlay.instance != null)
+                    // GDIJoystickOverlay.ChangeVisibility(FocusChecker.focusedTargetHwnd != IntPtr.Zero);
+                    GDIJoystickOverlay.ChangeVisibility(true);
 
-                if (FocusedHwndChecker.focusedTargetHwnd != IntPtr.Zero)
-                {
-                    Import.RECT rectWindow;
-                    bool getWindowRectSuccess = Import.GetWindowRect(FocusedHwndChecker.focusedTargetHwnd, out rectWindow);
-
-                    /*
-                    if (lastFocusedTargetHwnd != FocusedHwndChecker.focusedTargetHwnd)
-                    {
-                        Console.WriteLine($"Target hwnd focused: {FocusedHwndChecker.focusedTargetHwnd}, {Import.IsWindow(FocusedHwndChecker.focusedTargetHwnd)}");
-
-                        if (getWindowRectSuccess)
-                            Console.WriteLine($"Rect: {rectWindow.left}, {rectWindow.top}, {rectWindow.right}, {rectWindow.bottom}");
-                    }
-                    */
-
-                    // Confining the cursor inside the game window
-                    if (getWindowRectSuccess)
-                    {
-                        Import.POINT point;
-                        bool getCursorPosSuccess = Import.GetCursorPos(out point);
-
-                        if (getCursorPosSuccess)
-                        {
-                            int mouseX = point.x;
-                            int mouseY = point.y;
-
-                            if (mouseX < rectWindow.left)
-                                mouseX = rectWindow.left;
-                            if (mouseX > rectWindow.right)
-                                mouseX = rectWindow.right;
-
-                            if (mouseY < rectWindow.top)
-                                mouseY = rectWindow.top;
-                            if (mouseY > rectWindow.bottom)
-                                mouseY = rectWindow.bottom;
-
-                            Import.SetCursorPos(mouseX, mouseY);
-                        }
-                    }
-                }
-
-                lastFocusedTargetHwnd = FocusedHwndChecker.focusedTargetHwnd;
+                ConfineCursor();
 
                 MouseJoystick.Update();
 
                 if (abortFlag)
                     break;
 
-                Thread.Sleep(10);
+                Thread.Sleep(15);
             }
         }
 
-        [STAThread]
         static void Main(string[] args)
         {
+            GDIJoystickOverlay.Run();
+
+            Thread overlayUpdateThread = new Thread(OverlayUpdateThread);
+            overlayUpdateThread.Start();
+
+            Thread focusMonitorThread = new Thread(FocusMonitorThread);
+            focusMonitorThread.Start();
+
             Thread seperateThread = new Thread(SeperateThread);
             seperateThread.Start();
 
@@ -90,11 +109,19 @@ namespace MouseJoystickWithOverlay
                 {
                     abortFlag = true;
 
-                    while (seperateThread.IsAlive) ;
+                    while
+                    (
+                        seperateThread.IsAlive ||
+                        focusMonitorThread.IsAlive
+                    ) ;
 
                     break;
                 }
+
+                Thread.Sleep(250);
             }
+
+            GDIJoystickOverlay.RequestClose();
         }
     }
 }
