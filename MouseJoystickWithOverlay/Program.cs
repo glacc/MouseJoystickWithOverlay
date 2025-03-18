@@ -2,23 +2,24 @@
 // Copyright (C) 2025 Glacc
 
 using System.Runtime.Versioning;
+using Vortice.DirectInput;
 
 namespace MouseJoystickWithOverlay
 {
     [SupportedOSPlatform("Windows")]
     internal class Program
     {
-        static volatile bool abortFlag = false;
+        public static volatile bool abortFlag = false;
 
         static void OverlayUpdateThread()
         {
             while (!abortFlag)
             {
-                if (GDIJoystickOverlay.instance != null)
+                if (GDIJoystickOverlayForm.instance != null)
                 {
-                    if (GDIJoystickOverlay.instance.Visible)
+                    if (GDIJoystickOverlayForm.instance.Visible)
                     {
-                        GDIJoystickOverlay.RequestRedraw();
+                        GDIJoystickOverlayForm.RequestRedraw();
                         // GDIJoystickOverlay.instance?.SetToTopMost();
                     }
                 }
@@ -71,26 +72,60 @@ namespace MouseJoystickWithOverlay
 
         static void SeperateThread()
         {
+            bool keyLockHold = false;
+            bool keyToggleHold = false;
+
             while (!abortFlag)
             {
-                if (GDIJoystickOverlay.instance != null)
-                    // GDIJoystickOverlay.ChangeVisibility(FocusChecker.focusedTargetHwnd != IntPtr.Zero);
-                    GDIJoystickOverlay.ChangeVisibility(true);
+                if (GDIJoystickOverlayForm.instance != null)
+                    GDIJoystickOverlayForm.ChangeVisibility(FocusChecker.focusedTargetHwnd != IntPtr.Zero);
 
                 ConfineCursor();
+
+                HashSet<Key> pressedKeys = InputHandling.PollKeyboardInput();
+
+                if (FocusChecker.focusedTargetHwnd != IntPtr.Zero)
+                {
+                    if (pressedKeys.Contains(Key.C))
+                    {
+                        if (!keyLockHold)
+                        {
+                            if (MouseJoystick.enabled)
+                                MouseJoystick.locked = !MouseJoystick.locked;
+                        }
+
+                        keyLockHold = true;
+                    }
+                    else
+                        keyLockHold = false;
+
+                    if ((pressedKeys.Contains(Key.LeftAlt) || pressedKeys.Contains(Key.RightAlt)) &&
+                        pressedKeys.Contains(Key.N))
+                    {
+                        if (!keyToggleHold)
+                        {
+                            MouseJoystick.enabled = !MouseJoystick.enabled;
+                            MouseJoystick.locked = false;
+                        }
+
+                        keyToggleHold = true;
+                    }
+                    else
+                        keyToggleHold = false;
+                }
 
                 MouseJoystick.Update();
 
                 if (abortFlag)
                     break;
 
-                Thread.Sleep(15);
+                Thread.Sleep(10);
             }
         }
 
         static void Main(string[] args)
         {
-            GDIJoystickOverlay.Run();
+            GDIJoystickOverlayForm.Run();
 
             Thread overlayUpdateThread = new Thread(OverlayUpdateThread);
             overlayUpdateThread.Start();
@@ -100,28 +135,6 @@ namespace MouseJoystickWithOverlay
 
             Thread seperateThread = new Thread(SeperateThread);
             seperateThread.Start();
-
-            while (true)
-            {
-                string input = Console.ReadLine() ?? "";
-
-                if (input == "exit")
-                {
-                    abortFlag = true;
-
-                    while
-                    (
-                        seperateThread.IsAlive ||
-                        focusMonitorThread.IsAlive
-                    ) ;
-
-                    break;
-                }
-
-                Thread.Sleep(250);
-            }
-
-            GDIJoystickOverlay.RequestClose();
         }
     }
 }
