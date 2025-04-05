@@ -13,6 +13,8 @@ namespace MouseJoystickWithOverlay
         public static bool lmbPressed = false;
         public static bool rmbPressed = false;
 
+        public static HashSet<Key> pressedKeys = new HashSet<Key>();
+
         static InputHandling()
         {
             List<DeviceInstance> keyboardInstances = new List<DeviceInstance>(directInput.GetDevices(DeviceClass.Keyboard, DeviceEnumerationFlags.AttachedOnly));
@@ -88,7 +90,7 @@ namespace MouseJoystickWithOverlay
 
         public static HashSet<Key> PollKeyboardInput()
         {
-            HashSet<Key> pressedKeys = new HashSet<Key>();
+            HashSet<Key> pressedKeysTemp = new HashSet<Key>();
 
             foreach (IDirectInputDevice8 keyboard in keyboards)
             {
@@ -100,13 +102,15 @@ namespace MouseJoystickWithOverlay
                     KeyboardState state = keyboard.GetCurrentState<KeyboardState, RawKeyboardState, KeyboardUpdate>();
 
                     foreach (Key key in state.PressedKeys)
-                        pressedKeys.Add(key);
+                        pressedKeysTemp.Add(key);
                 }
                 catch
                 { }
             }
 
-            return pressedKeys;
+            pressedKeys = pressedKeysTemp;
+
+            return pressedKeysTemp;
         }
     }
 }

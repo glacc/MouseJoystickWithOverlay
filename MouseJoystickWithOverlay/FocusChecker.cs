@@ -44,9 +44,16 @@ namespace MouseJoystickWithOverlay
         {
             mutex.WaitOne();
 
-            Process[] processes = Process.GetProcessesByName("il-2");
+            string[] processNames = ["il-2", "il2fb", "JoystickWizard", "Launcher64"];
 
-            if (processes.Length > 0)
+            List<Process> processes = new List<Process>();
+            foreach (string processName in processNames)
+            {
+                Process[] processesWithTheName = Process.GetProcessesByName(processName);
+                processes.AddRange(processesWithTheName);
+            }
+
+            if (processes.Count > 0)
             {
                 IntPtr currentlyFocusedHwnd = Win32.GetForegroundWindow();
 

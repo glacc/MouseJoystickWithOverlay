@@ -82,11 +82,11 @@ namespace MouseJoystickWithOverlay
 
                 ConfineCursor();
 
-                HashSet<Key> pressedKeys = InputHandling.PollKeyboardInput();
+                InputHandling.PollKeyboardInput();
 
                 if (FocusChecker.focusedTargetHwnd != IntPtr.Zero)
                 {
-                    if (pressedKeys.Contains(Key.C))
+                    if (InputHandling.pressedKeys.Contains(Key.C))
                     {
                         if (!keyLockHold)
                         {
@@ -99,9 +99,11 @@ namespace MouseJoystickWithOverlay
                     else
                         keyLockHold = false;
 
-                    if ((pressedKeys.Contains(Key.LeftAlt) || pressedKeys.Contains(Key.RightAlt)) &&
-                        pressedKeys.Contains(Key.N))
+                    if ((InputHandling.pressedKeys.Contains(Key.LeftAlt) || InputHandling.pressedKeys.Contains(Key.RightAlt)) &&
+                        InputHandling.pressedKeys.Contains(Key.N))
                     {
+                        MouseJoystick.blockXAxis = true;
+
                         if (!keyToggleHold)
                         {
                             MouseJoystick.enabled = !MouseJoystick.enabled;
@@ -111,7 +113,11 @@ namespace MouseJoystickWithOverlay
                         keyToggleHold = true;
                     }
                     else
+                    {
+                        MouseJoystick.blockXAxis = false;
+
                         keyToggleHold = false;
+                    }
                 }
 
                 MouseJoystick.Update();
